@@ -12,7 +12,7 @@
 #include "shader/shader.h"
 #include "utils/camera3d.h"
 #include "utils/performanceMonitor.h"
-
+#include "menu.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +48,9 @@ const unsigned int mesh_height = 256;
 
 // camera
 Camera3D camera(glm::vec3(0.0f, 0.0f, 0.0f));
+
+//menu
+Menu menu = Menu();
 
 // vbo variables
 GLuint vbo;
@@ -92,6 +95,9 @@ void runDisplay()
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetScrollCallback(window, scroll_callback);
+
+    menu.setWindow(window);
+    menu.setMouseCallback(mouse_callback);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -143,6 +149,8 @@ void runDisplay()
     float timer = 0.0f;
     bool points = false;
 
+    menu.initMenu();
+
     PerformanceMonitor pMonitor(glfwGetTime(), 0.5f);
 
     // render loop
@@ -170,6 +178,8 @@ void runDisplay()
         // ------
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        menu.preRender();
 
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_DEPTH_TEST);
@@ -204,6 +214,8 @@ void runDisplay()
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height);
 
+        menu.render();
+
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -218,6 +230,7 @@ void runDisplay()
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
+
     return;
 }
 
