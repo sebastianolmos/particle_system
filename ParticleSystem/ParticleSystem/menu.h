@@ -15,12 +15,34 @@ public:
     void initMenu();
     void preRender();
     void render();
+
+    void setGravity(float* gx, float* gy, float* gz)
+    {
+        gravityX = gx;
+        gravityY = gy;
+        gravityZ = gz;
+    }
+
+    void setGlobalDamping(float* gdamp)
+    {
+        globalDamping = gdamp;
+    }
+
+    void setBoundaryDamping(float* damp)
+    {
+        boundaryDamping = damp;
+    }
+
 private:
     GLFWwindow* appWindow;
     GLFWcursorposfun mouseCallback;
     float* damping;
-    float* gravity;
+    float* gravityX;
+    float* gravityY;
+    float* gravityZ;
     bool* showSphere;
+    float* globalDamping;
+    float* boundaryDamping;
 };
 
 Menu::~Menu()
@@ -86,9 +108,13 @@ void Menu::render()
         ImGui::Begin("Menu");                          // Create a window called "Hello, world!" and append into it.
 
         ImGui::Text("Parametros:");               // Display some text (you can use a format strings too)
-        ImGui::SliderFloat("Gravity", gravity, 0.0001f, 0.001f);
-        ImGui::SliderFloat("Damping", damping, 0.0f, 1.0f);
-        ImGui::Checkbox("Show spheres?", showSphere);      
+        ImGui::SliderFloat("Gravity X", gravityX, -1.0f, 1.0f);
+        ImGui::SliderFloat("Gravity Y", gravityY, -1.0f, 1.0f);
+        ImGui::SliderFloat("Gravity Z", gravityZ, -1.0f, 1.0f);
+        ImGui::SliderFloat("global Dump", globalDamping, 0.0001, 1.0f);
+        ImGui::SliderFloat("Box Dump", boundaryDamping, 0.0001, 1.00f);
+        //ImGui::SliderFloat("Damping", damping, 0.0f, 1.0f);
+        //ImGui::Checkbox("Show spheres?", showSphere);      
            // Edit 1 float using a slider from 0.0f to 1.0f
         //ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 

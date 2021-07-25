@@ -6,81 +6,114 @@
 
 #include <stdio.h>
 
+#include "thrust/device_ptr.h"
+#include "thrust/for_each.h"
+#include "thrust/iterator/zip_iterator.h"
+
+#include "kernelSystem.cuh"
+
 extern "C"
 {
-    __global__ void points3dKernel(float3* pos, unsigned int width, unsigned int height, float time)
+    void allocateArray(void** devPtr, size_t size)
     {
-        unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-        unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-        // calculate uv coordinates
-        float u = x / (float)width;
-        float v = y / (float)height;
-        u = u * 2.0f - 1.0f;
-        v = v * 2.0f - 1.0f;
-        u = u * 7.0f;
-        v = v * 7.0f;
-
-        // calculate simple sine wave pattern
-        float freq = 2.0f;
-        float w = sinf(u * freq + time) * cosf(v * freq + time) * 2.0f;
-
-        // write output vertex
-        pos[y * width + x] = make_float3(u, v, w);
+        cudaMalloc(devPtr, size);
     }
 
-    void runKernel(float3* pos, unsigned int mesh_width, unsigned int mesh_height, float time)
+    void freeArray(void* devPtr)
     {
-        // execute the kernel
-        dim3 block(16, 16, 1);
-        dim3 grid(mesh_width / block.x, mesh_height / block.y, 1);
-        points3dKernel << < grid, block >> > (pos, mesh_width, mesh_height, time);
+        cudaFree(devPtr);
     }
 
-    void runCuda(struct cudaGraphicsResource** vbo_resource, float time, unsigned int width, unsigned int height)
+    void threadSync()
     {
-        // map OpenGL buffer object for writing from CUDA
-        float3* dptr;
-        cudaGraphicsMapResources(1, vbo_resource, 0);
-        size_t num_bytes;
-        cudaGraphicsResourceGetMappedPointer((void**)&dptr, &num_bytes,
-            *vbo_resource);
-        //printf("CUDA mapped VBO: May access %ld bytes\n", num_bytes);
-
-        runKernel(dptr, width, height, time);
-
-        // unmap buffer object
-        cudaGraphicsUnmapResources(1, vbo_resource, 0);
-    }
-
-
-    void runTest(unsigned int width, unsigned int height)
-    {
-        void* returnData = malloc(width * height * sizeof(float));
-        void* d_vbo_buffer = NULL;
-        // create VBO
-        cudaMalloc((void**)&d_vbo_buffer, width * height * 3 * sizeof(float));
-
-        // execute the kernel
-        runKernel((float3*)d_vbo_buffer, width, height, 1.0f);
-
         cudaDeviceSynchronize();
-        cudaMemcpy(returnData, d_vbo_buffer, width * height * sizeof(float), cudaMemcpyDeviceToHost);
-
-        cudaFree(d_vbo_buffer);
-        d_vbo_buffer = NULL;
-
-        free(returnData);
-        printf("Test passed");
-
     }
 
-    void registerWithCuda(struct cudaGraphicsResource** resource, GLuint vbo) {
-        cudaGraphicsGLRegisterBuffer(resource, vbo, cudaGraphicsMapFlagsWriteDiscard);
+    void copyArrayToDevice(void* device, const void* host, int offset, int size)
+    {
+        cudaMemcpy((char*)device + offset, host, size, cudaMemcpyHostToDevice);
     }
 
-    void unRegisterWithCuda(cudaGraphicsResource_t vbo_res) {
-        cudaGraphicsUnregisterResource(vbo_res);
-
+    void registerGLBufferObject(uint vbo, struct cudaGraphicsResource** cuda_vbo_resource)
+    {
+        cudaGraphicsGLRegisterBuffer(cuda_vbo_resource, vbo, cudaGraphicsMapFlagsNone);
     }
+
+    void unregisterGLBufferObject(struct cudaGraphicsResource* cuda_vbo_resource)
+    {
+        cudaGraphicsUnregisterResource(cuda_vbo_resource);
+    }
+
+    void* mapGLBufferObject(struct cudaGraphicsResource** cuda_vbo_resource)
+    {
+        void* ptr;
+        cudaGraphicsMapResources(1, cuda_vbo_resource, 0);
+        size_t num_bytes;
+        cudaGraphicsResourceGetMappedPointer((void**)&ptr, &num_bytes, *cuda_vbo_resource);
+        return ptr;
+    }
+
+    void unmapGLBufferObject(struct cudaGraphicsResource* cuda_vbo_resource)
+    {
+        cudaGraphicsUnmapResources(1, &cuda_vbo_resource, 0);
+    }
+
+    void copyArrayFromDevice(void* host, const void* device,
+        struct cudaGraphicsResource** cuda_vbo_resource, int size)
+    {
+        if (cuda_vbo_resource)
+        {
+            device = mapGLBufferObject(cuda_vbo_resource);
+        }
+
+        cudaMemcpy(host, device, size, cudaMemcpyDeviceToHost);
+
+        if (cuda_vbo_resource)
+        {
+            unmapGLBufferObject(*cuda_vbo_resource);
+        }
+    }
+
+    void setParameters(kernelParams* hostParams)
+    {
+        // copy parameters to constant memory
+        cudaMemcpyToSymbol(params, hostParams, sizeof(kernelParams));
+    }
+
+    //Round a / b to nearest higher integer value
+    uint iDivUp(uint a, uint b)
+    {
+        return (a % b != 0) ? (a / b + 1) : (a / b);
+    }
+
+    // compute grid and thread block size for a given number of elements
+    void computeGridSize(uint n, uint blockSize, uint& numBlocks, uint& numThreads)
+    {
+        numThreads = min(blockSize, n);
+        numBlocks = iDivUp(n, numThreads);
+    }
+
+    void integrateInDevice1(float* pos, float* vel, float deltaTime, uint nParticles)
+    {
+        thrust::device_ptr<float4> d_pos((float4*)pos);
+        thrust::device_ptr<float4> d_vel((float4*)vel);
+
+        thrust::for_each(
+            thrust::make_zip_iterator(thrust::make_tuple(d_pos, d_vel)),
+            thrust::make_zip_iterator(thrust::make_tuple(d_pos + nParticles, d_vel + nParticles)),
+            integrate1(deltaTime));
+    }
+
+    void integrateInDevice2(float* pos, float* vel, float deltaTime, uint nParticles)
+    {
+        // thread per particle
+        uint numThreads, numBlocks;
+        computeGridSize(nParticles, 256, numBlocks, numThreads);
+
+        // execute the kernel
+        integrate2 << < numBlocks, numThreads >> > ((float4*)pos,
+            (float4*)vel,
+            deltaTime);
+    }
+
 }

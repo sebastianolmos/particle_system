@@ -151,12 +151,22 @@ public:
         updateCameraVectors();
     }
 
+    void setCenter(glm::vec3 newCenter)
+    {
+        Center = newCenter;
+    }
+
+    void setRadius(float r)
+    {
+        Radius = r;
+    }
+
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset)
     {
         if (CurrentMousePos.x > screenOffset)
         {
-            Radius -= (float)yoffset * 1.0f;
+            Radius -= (float)yoffset * 0.2f;
             if (Radius < 1.0f)
                 Radius = 1.0f;
             if (Radius > 100.0f)

@@ -13,6 +13,7 @@
 #include "utils/camera3d.h"
 #include "utils/performanceMonitor.h"
 #include "menu.h"
+#include "system.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,13 +25,10 @@
 #define M_PI    3.1415926535897932384626433832795
 #endif
 
+#define GRID_SIZE       64
+#define NUM_PARTICLES   16384
+
 using namespace std;
-
-extern "C" void runCuda(struct cudaGraphicsResource** vbo_resource, float time, unsigned int width, unsigned int height);
-extern "C" void runTest(unsigned int width, unsigned int height);
-extern "C" void registerWithCuda(struct cudaGraphicsResource** resource, GLuint vbo);
-extern "C" void unRegisterWithCuda(cudaGraphicsResource_t vbo_res);
-
 
 void runDisplay();
 void deleteVBO(GLuint* vbo, struct cudaGraphicsResource* vbo_res);
@@ -43,14 +41,21 @@ void processInput(GLFWwindow* window, bool* points);
 
 const unsigned int window_width = 1280;
 const unsigned int window_height = 720;
-const unsigned int mesh_width = 256;
-const unsigned int mesh_height = 256;
+
+uint numParticles = 0;
+uint3 gridSize;
+
+float damping = 1.0f;
+glm::vec3 gravity = glm::vec3(0.0f, 0.0f, -0.0003f);
+int ballr = 10;
 
 // camera
 Camera3D camera(glm::vec3(0.0f, 0.0f, 0.0f));
 
 //menu
 Menu menu = Menu();
+
+System* psystem = 0;
 
 // vbo variables
 GLuint vbo;
@@ -59,20 +64,39 @@ struct cudaGraphicsResource* cuda_vbo_resource;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 
+// initialize particle system
+void initParticleSystem(int numParticles, uint3 gridSize)
+{
+    psystem = new System(numParticles, gridSize);
+    psystem->reset();
+}
+
+void cleanup()
+{
+    if (psystem)
+    {
+        delete psystem;
+    }
+    return;
+}
 
 int main()
 {
     bool cudaTest = false;
-
-    if (cudaTest)
-        runTest(mesh_width, mesh_height);
-    else
-        runDisplay();
+    runDisplay();
 }
 
+void initParams()
+{
+
+}
 
 void runDisplay()
 {
+    numParticles = NUM_PARTICLES;
+    uint gridDim = GRID_SIZE;
+    gridSize.x = gridSize.y = gridSize.z = gridDim;
+
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -80,7 +104,7 @@ void runDisplay()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    string title = "3D Points interop CUDA";
+    string title = "3D Particle System";
     // glfw window creation
     // --------------------
     GLFWwindow* window = glfwCreateWindow(window_width, window_height, title.c_str(), NULL, NULL);
@@ -114,34 +138,24 @@ void runDisplay()
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
 
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &vbo);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
+    initParticleSystem(numParticles, gridSize);
+    initParams();
 
-    // create buffer object
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    camera.setCenter(glm::vec3(psystem->getCenter().x,
+        psystem->getCenter().y,
+        psystem->getCenter().z/4.0f));
+    camera.setRadius(psystem->getCenter().x * 2.0f);
 
-    // initialize buffer object
-    unsigned int size = mesh_width * mesh_height * 3 * sizeof(float);
-    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+    // Create collision box with lines
+    Shader boxShader("shader/basicMVPShader.vs", "shader/basicMVPShader.fs");
+    psystem->createBox();
 
-    // register this buffer object with CUDA
-    registerWithCuda(&cuda_vbo_resource, vbo);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    runCuda(&cuda_vbo_resource, 0.0f, mesh_width, mesh_height);
-
-    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    glBindVertexArray(0);
+    float gdump = 1.0f;
+    float bdump = 1.0f;
+    // Set Menu Params
+    menu.setGravity(&gravity.x, &gravity.y, &gravity.z);
+    menu.setGlobalDamping(&gdump);
+    menu.setBoundaryDamping(&bdump);
 
     float t1 = (float)glfwGetTime();
     float t0 = (float)glfwGetTime();
@@ -172,7 +186,10 @@ void runDisplay()
         // -----
         processInput(window, &points);
 
-        runCuda(&cuda_vbo_resource, timer, mesh_width, mesh_height);
+        psystem->setGlobalDamping(gdump);
+        psystem->setBoundaryDamping(bdump);
+        psystem->setGravity(gravity.x, gravity.y, gravity.z);
+        psystem->update(deltaTime);
 
         // render
         // ------
@@ -205,14 +222,20 @@ void runDisplay()
             sphereShader.setFloat("pointScale", 1);
         }
         else {
-            sphereShader.setFloat("pointRadius", 0.125f * 0.5f);
+            sphereShader.setFloat("pointRadius", psystem->getParticleRadius());
             sphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
         }
-        sphereShader.setVec3("Color", glm::vec3(1.0f, 0.0f, 0.0f));
         sphereShader.setVec3("lightDir", glm::vec3(1.0f, 1.0f, 0.0f));
 
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height);
+        psystem->renderParticles();
+
+        // Render the collide box
+        boxShader.use();
+        boxShader.setMat4("projection", projection);
+        boxShader.setMat4("view", view);
+        glm::mat4 boxModel = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+        boxShader.setMat4("model", boxModel);
+        psystem->renderBox();
 
         menu.render();
 
@@ -224,8 +247,7 @@ void runDisplay()
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO);
-    deleteVBO(&vbo, cuda_vbo_resource);
+    //glDeleteVertexArrays(1, &VAO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -234,17 +256,7 @@ void runDisplay()
     return;
 }
 
-void deleteVBO(GLuint* vbo, struct cudaGraphicsResource* vbo_res)
-{
 
-    // unregister this buffer object with CUDA
-    unRegisterWithCuda(vbo_res);
-
-    glBindBuffer(1, *vbo);
-    glDeleteBuffers(1, vbo);
-
-    *vbo = 0;
-}
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
