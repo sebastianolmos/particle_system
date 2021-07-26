@@ -20,7 +20,10 @@ struct kernelParams
 
     uint maxParticlesPerCell;
 
+    float spring;
     float damping;
+    float shear;
+    float attraction;
     float boundaryDamping;
 };
 

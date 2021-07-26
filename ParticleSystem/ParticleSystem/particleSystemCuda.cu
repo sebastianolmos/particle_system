@@ -116,4 +116,48 @@ extern "C"
             deltaTime);
     }
 
+    void swapVelInDevice(float* newVel, float* oldVel, uint nParticles)
+    {
+        // thread per particle
+        uint numThreads, numBlocks;
+        computeGridSize(nParticles, 256, numBlocks, numThreads);
+
+        // execute the kernel
+        swapVel << < numBlocks, numThreads >> > (
+            (float4*)newVel,
+            (float4*)oldVel,
+            nParticles);
+    }
+
+    void updateGridInDevice(float* pos, uint* gridCounters, uint* gridCells, uint nParticles, uint numCells)
+    {
+        uint numThreads, numBlocks;
+        computeGridSize(nParticles, 256, numBlocks, numThreads);
+
+        // set all cells to empty
+        cudaMemset(gridCounters, 0x00000000, numCells * sizeof(uint));
+        uint smemSize = sizeof(uint) * (numThreads + 1);
+        updateGrid << < numBlocks, numThreads, smemSize >> >(
+            (float4*)pos,
+            gridCounters,
+            gridCells,
+            nParticles
+            );
+    }
+
+    void collideInDevice(float* newVel, float* oldPos, float* oldVel, uint* gridCounters, uint* gridCells, uint nParticles)
+    {
+        // thread per particle
+        uint numThreads, numBlocks;
+        computeGridSize(nParticles, 64, numBlocks, numThreads);
+
+        // execute the kernel
+        collideParticles << < numBlocks, numThreads >> > (
+            (float4*)newVel,
+            (float4*)oldPos,
+            (float4*)oldVel,
+            gridCounters,
+            gridCells,
+            nParticles);
+    }
 }

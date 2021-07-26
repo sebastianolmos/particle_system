@@ -29,4 +29,9 @@ extern "C"
 
     void integrateInDevice2(float* pos, float* vel, float deltaTime, uint nParticles);
 
+    void swapVelInDevice(float* newVel, float* oldVel, uint nParticles);
+
+    void updateGridInDevice(float* pos, uint* gridCounters, uint* gridCells, uint nParticles, uint numCells);
+
+    void collideInDevice(float* newVel, float* oldPos, float* oldVel, uint* gridCounters, uint* gridCells, uint nParticles);
 }

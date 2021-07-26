@@ -104,6 +104,9 @@ private:
 
 	float* m_devicePos;
 	float* m_deviceVel;
+	float* m_deviceSortedVel;
+	uint* m_deviceGridCounters;
+	uint* m_deviceGridCells;
 
 	uint m_posVAO;
 	uint m_posVBO;
@@ -143,7 +146,10 @@ System::System(uint numParticles, uint3 gridSize) :
 	m_params.boxSize = make_float3(m_params.cellSize.x * m_params.gridSize.x,
 		m_params.cellSize.y * m_params.gridSize.y,
 		m_params.cellSize.z * m_params.gridSize.z);
-
+	m_params.spring = 0.5f;
+	m_params.damping = 0.02f;
+	m_params.shear = 0.1f;
+	m_params.attraction = 0.0f;
 	_initialize(numParticles);
 }
 
@@ -244,6 +250,11 @@ void System::_initialize(int numParticles)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     allocateArray((void**)&m_deviceVel, memSize);
+	allocateArray((void**)&m_deviceSortedVel, memSize);
+
+
+	allocateArray((void**)&m_deviceGridCounters, sizeof(uint) * 1 * m_numGridCells);
+	allocateArray((void**)&m_deviceGridCells, sizeof(uint) * 4 * m_numGridCells);
 
     setParameters(&m_params);
 }
@@ -277,6 +288,14 @@ void System::update(float deltaTime)
         deltaTime,
         m_numParticles);
 
+	// Order grid
+	updateGridInDevice(dPos, m_deviceGridCounters, m_deviceGridCells, m_numParticles, m_numGridCells);
+
+	// Swap
+	swapVelInDevice(m_deviceSortedVel, m_deviceVel, m_numParticles);
+
+	// Collision
+	collideInDevice(m_deviceVel, dPos, m_deviceSortedVel, m_deviceGridCounters, m_deviceGridCells, m_numParticles);
 
 	unmapGLBufferObject(m_cudaPosVboResource);
 }
