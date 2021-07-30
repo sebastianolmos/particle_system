@@ -64,6 +64,26 @@ public:
 		m_params.gravity = make_float3(x, y, z);
 	}
 
+	void setParticleDamping(float x)
+	{
+		m_params.boundaryDamping = x;
+	}
+
+	void setSpring(float x)
+	{
+		m_params.spring = x;
+	}
+
+	void setShear(float x)
+	{
+		m_params.shear = x;
+	}
+
+	void setAttraction(float x)
+	{
+		m_params.attraction = x;
+	}
+
 	float3 getCenter()
 	{
 		return m_params.center;

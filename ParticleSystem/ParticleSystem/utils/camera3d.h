@@ -69,6 +69,7 @@ public:
     float rotSensitivity;
     bool rotDrag;
     float screenOffset;
+    bool vertDrag;
 
     // constructor with vectors
     Camera3D(glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f), float rad = 30.0f, float theta = THETA) :
@@ -81,6 +82,7 @@ public:
         CurrentMousePos(glm::vec2(0.0f)),
         centerDrag(false),
         rotDrag(false),
+        vertDrag(false),
         lastTheta(THETA),
         lastPhi(PHI),
         rotSensitivity(ROTATION_SENS),
@@ -185,6 +187,10 @@ public:
         centerDrag = value;
     }
 
+    void SetVerticalDrag(bool value)
+    {
+        vertDrag = value;
+    }
 
     void SetCurrentMousePos(float xPos, float yPos)
     {
@@ -205,6 +211,11 @@ public:
             glm::vec2 delta = (pos2d - CurrentMousePos) * -1.0f;
             Center += Right * delta.x * centerSensitivty * Radius / 4.0f
                 + Front * delta.y * centerSensitivty * Radius / 4.0f;
+        }
+        else if (vertDrag)
+        {
+            glm::vec2 delta = (pos2d - CurrentMousePos) * -1.0f;
+            Center += Up * delta.y * centerSensitivty * Radius / 4.0f;
         }
 
         CurrentMousePos.x = xPos;

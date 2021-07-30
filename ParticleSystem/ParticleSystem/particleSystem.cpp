@@ -26,7 +26,7 @@
 #endif
 
 #define GRID_SIZE       64
-#define NUM_PARTICLES   16384
+#define NUM_PARTICLES   262144
 
 using namespace std;
 
@@ -47,6 +47,15 @@ uint3 gridSize;
 
 float damping = 1.0f;
 glm::vec3 gravity = glm::vec3(0.0f, 0.0f, -0.0003f);
+float globalDump = 1.0f;
+float boundaryDump = 1.0f;
+float particleDump = 0.02f;
+float spring = 0.5f;
+float shear = 0.1f;
+float attraction = 0.0f;
+bool collideObject = false;
+uint objectToCollide = 0;
+
 int ballr = 10;
 
 // camera
@@ -150,12 +159,26 @@ void runDisplay()
     Shader boxShader("shader/basicMVPShader.vs", "shader/basicMVPShader.fs");
     psystem->createBox();
 
-    float gdump = 1.0f;
-    float bdump = 1.0f;
+    // Set system params
+    psystem->setGravity(gravity.x, gravity.y, gravity.z);
+    psystem->setBoundaryDamping(boundaryDump);
+    psystem->setGlobalDamping(globalDump);
+    psystem->setParticleDamping(particleDump);
+    psystem->setSpring(spring);
+    psystem->setShear(shear);
+    psystem->setAttraction(attraction);
+
     // Set Menu Params
     menu.setGravity(&gravity.x, &gravity.y, &gravity.z);
-    menu.setGlobalDamping(&gdump);
-    menu.setBoundaryDamping(&bdump);
+    menu.setGlobalDamping(&globalDump);
+    menu.setBoundaryDamping(&boundaryDump);
+    menu.setParticleDamping(&particleDump);
+    menu.setSpring(&spring);
+    menu.setAttraction(&attraction);
+    menu.setShear(&shear);
+    menu.setCollideCheck(&collideObject);
+    menu.setObjectSelector(&objectToCollide);
+    menu.updateNumParticles(psystem->getNumParticles());
 
     float t1 = (float)glfwGetTime();
     float t0 = (float)glfwGetTime();
@@ -186,9 +209,13 @@ void runDisplay()
         // -----
         processInput(window, &points);
 
-        psystem->setGlobalDamping(gdump);
-        psystem->setBoundaryDamping(bdump);
         psystem->setGravity(gravity.x, gravity.y, gravity.z);
+        psystem->setBoundaryDamping(boundaryDump);
+        psystem->setGlobalDamping(globalDump);
+        psystem->setParticleDamping(particleDump);
+        psystem->setSpring(spring);
+        psystem->setShear(shear);
+        psystem->setAttraction(attraction);
         psystem->update(deltaTime);
 
         // render
@@ -237,6 +264,7 @@ void runDisplay()
         boxShader.setMat4("model", boxModel);
         psystem->renderBox();
 
+        menu.updateNumParticles(psystem->getNumParticles());
         menu.render();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -321,6 +349,16 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
     {
         camera.SetCenterDrag(false);
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
+    {
+        camera.SetVerticalDrag(true);
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE)
+    {
+        camera.SetVerticalDrag(false);
     }
 }
 

@@ -149,7 +149,7 @@ extern "C"
     {
         // thread per particle
         uint numThreads, numBlocks;
-        computeGridSize(nParticles, 64, numBlocks, numThreads);
+        computeGridSize(nParticles, 256, numBlocks, numThreads);
 
         // execute the kernel
         collideParticles << < numBlocks, numThreads >> > (
