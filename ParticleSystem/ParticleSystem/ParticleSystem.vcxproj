@@ -108,6 +108,8 @@
   <ItemGroup>
     <None Include="shader\basicMVPShader.fs" />
     <None Include="shader\basicMVPShader.vs" />
+    <None Include="shader\lightMVPShader.fs" />
+    <None Include="shader\lightMVPShader.vs" />
     <None Include="shader\sphereMVPShader.fs" />
     <None Include="shader\sphereMVPShader.vs" />
   </ItemGroup>

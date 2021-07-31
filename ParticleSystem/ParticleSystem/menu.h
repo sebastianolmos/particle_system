@@ -66,6 +66,11 @@ public:
         objectToCollide = selector;
     }
 
+    void setTimeStep(float* step)
+    {
+        timeStep = step;
+    }
+
     void updateNumParticles(uint num)
     {
         numParticles = num;
@@ -74,6 +79,7 @@ public:
 private:
     GLFWwindow* appWindow;
     GLFWcursorposfun mouseCallback;
+    float* timeStep;
     float* damping;
     float* gravityX;
     float* gravityY;
@@ -153,13 +159,15 @@ void Menu::render()
 
         ImGui::Begin("Menu");                          // Create a window called "Hello, world!" and append into it.
 
+        ImGui::SliderFloat("TimeStep", timeStep, 0.0f, 1.0f);
+        ImGui::Separator();
         // ImGui::Text("Parametros:");               // Display some text (you can use a format strings too)
         if (ImGui::CollapsingHeader("Gravity"))
         {
             ImGui::PushID(1);
-            ImGui::SliderFloat("X", gravityX, -1.0f, 1.0f);
-            ImGui::SliderFloat("Y", gravityY, -1.0f, 1.0f);
-            ImGui::SliderFloat("Z", gravityZ, -1.0f, 1.0f);
+            ImGui::SliderFloat("X", gravityX, -0.01f, 0.01f);
+            ImGui::SliderFloat("Y", gravityY, -0.01f, 0.01f);
+            ImGui::SliderFloat("Z", gravityZ, -0.01f, 0.01f);
             ImGui::PopID();
         }
 

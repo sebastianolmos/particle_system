@@ -25,7 +25,9 @@
 #define M_PI    3.1415926535897932384626433832795
 #endif
 
-#define GRID_SIZE       64
+#define GRID_SIZE_X     128
+#define GRID_SIZE_Y     128
+#define GRID_SIZE_Z     128
 #define NUM_PARTICLES   262144
 
 using namespace std;
@@ -45,7 +47,7 @@ const unsigned int window_height = 720;
 uint numParticles = 0;
 uint3 gridSize;
 
-float damping = 1.0f;
+float timeStep = 0.5f;
 glm::vec3 gravity = glm::vec3(0.0f, 0.0f, -0.0003f);
 float globalDump = 1.0f;
 float boundaryDump = 1.0f;
@@ -103,8 +105,10 @@ void initParams()
 void runDisplay()
 {
     numParticles = NUM_PARTICLES;
-    uint gridDim = GRID_SIZE;
-    gridSize.x = gridSize.y = gridSize.z = gridDim;
+    uint gridDim = GRID_SIZE_X;
+    gridSize.x = GRID_SIZE_X;
+    gridSize.y = GRID_SIZE_Y;
+    gridSize.z = GRID_SIZE_Z;
 
     // glfw: initialize and configure
     // ------------------------------
@@ -159,6 +163,10 @@ void runDisplay()
     Shader boxShader("shader/basicMVPShader.vs", "shader/basicMVPShader.fs");
     psystem->createBox();
 
+    // Create collision shapes
+    Shader dirLightShader("shader/lightMVPShader.vs", "shader/lightMVPShader.fs");
+    psystem->createSphereCollider();
+
     // Set system params
     psystem->setGravity(gravity.x, gravity.y, gravity.z);
     psystem->setBoundaryDamping(boundaryDump);
@@ -179,6 +187,7 @@ void runDisplay()
     menu.setCollideCheck(&collideObject);
     menu.setObjectSelector(&objectToCollide);
     menu.updateNumParticles(psystem->getNumParticles());
+    menu.setTimeStep(&timeStep);
 
     float t1 = (float)glfwGetTime();
     float t0 = (float)glfwGetTime();
@@ -216,7 +225,8 @@ void runDisplay()
         psystem->setSpring(spring);
         psystem->setShear(shear);
         psystem->setAttraction(attraction);
-        psystem->update(deltaTime);
+
+        psystem->update(timeStep);
 
         // render
         // ------
@@ -255,6 +265,25 @@ void runDisplay()
         sphereShader.setVec3("lightDir", glm::vec3(1.0f, 1.0f, 0.0f));
 
         psystem->renderParticles();
+
+        // Render Collider object
+        if (collideObject)
+        {
+            // sphere case
+            dirLightShader.use();
+            dirLightShader.setMat4("projection", projection);
+            dirLightShader.setMat4("view", view);
+            float3 sPos = psystem->getCollideObjectPos();
+            glm::mat4 cSmodel = glm::mat4(1.0f);
+            //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+            float collSize = psystem->getCollideObjectSize();
+            //model = glm::scale(model, glm::vec3(1.1f, 1.1f, 1.1f));
+            dirLightShader.setMat4("model", cSmodel);
+            dirLightShader.setVec3("lightDirection", glm::vec3(-1.0f, -1.0f, -1.0f));
+            dirLightShader.setVec3("viewPos", camera.Position);
+            psystem->renderSphereCollider();
+        }
+
 
         // Render the collide box
         boxShader.use();
@@ -343,11 +372,18 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
-        camera.SetCenterDrag(true);
+        if (!collideObject)
+        {
+            camera.SetCenterDrag(true);
+        }
+        else {
+            psystem->setCoolliderDrag(true);
+        }
     }
 
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
     {
+        psystem->setCoolliderDrag(false);
         camera.SetCenterDrag(false);
     }
 
@@ -370,6 +406,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     float posX = 2 * (xpos - window_width / 2) / window_width;
     float posY = 2 * (window_height / 2 - ypos) / window_height;
     camera.SetCurrentMousePos(posX, posY);
+    if (collideObject)
+    {
+        psystem->setMousePos(xpos, ypos, camera.Right, camera.Front, camera.Radius);
+    }
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called

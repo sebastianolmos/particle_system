@@ -25,6 +25,10 @@ struct kernelParams
     float shear;
     float attraction;
     float boundaryDamping;
+
+    float3 collidePos;
+    float collideSize;
+    uint collideShape;
 };
 
 #endif

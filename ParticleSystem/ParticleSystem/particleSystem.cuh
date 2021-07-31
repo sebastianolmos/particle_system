@@ -34,4 +34,17 @@ extern "C"
     void updateGridInDevice(float* pos, uint* gridCounters, uint* gridCells, uint nParticles, uint numCells);
 
     void collideInDevice(float* newVel, float* oldPos, float* oldVel, uint* gridCounters, uint* gridCells, uint nParticles);
+
+    void calcHashInDevice(uint* gridParticleHash, uint* gridParticleIndex, float* pos, int nParticles);
+
+    // sort particles based on hash
+    void sortParticlesInDevice(uint* dGridParticleHash, uint* dGridParticleIndex, uint nParticles);
+
+    // reorder particle arrays into sorted order and find start and end of each cell
+    void reorderParticlesInDevice(uint* cellStart, uint* cellEnd, float* sortedPos, float* sortedVel, uint* gridParticleHash, uint* gridParticleIndex,
+        float* oldPos, float* oldVel, uint numParticles, uint numCells);
+
+    // process collisions with hash
+    void collideWithHashInDevice(float* newVel, float* sortedPos, float* sortedVel, uint* gridParticleIndex, uint* cellStart, uint* cellEnd,
+        uint   numParticles, uint   numCells);
 }

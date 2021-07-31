@@ -9,6 +9,7 @@
 #include "thrust/device_ptr.h"
 #include "thrust/for_each.h"
 #include "thrust/iterator/zip_iterator.h"
+#include "thrust/sort.h"
 
 #include "kernelSystem.cuh"
 
@@ -160,4 +161,73 @@ extern "C"
             gridCells,
             nParticles);
     }
+
+    // calculate grid hash
+    void calcHashInDevice(uint* gridParticleHash, uint* gridParticleIndex, float* pos, int nParticles)
+    {
+        uint numThreads, numBlocks;
+        computeGridSize(nParticles, 256, numBlocks, numThreads);
+
+        // execute the kernel
+        calcHashD << < numBlocks, numThreads >> > (gridParticleHash,
+                                                   gridParticleIndex,
+                                                   (float4*)pos,
+                                                   nParticles);
+    }
+
+    // sort particles based on hash
+    void sortParticlesInDevice(uint* dGridParticleHash, uint* dGridParticleIndex, uint nParticles)
+    {
+        thrust::sort_by_key(thrust::device_ptr<uint>(dGridParticleHash),
+            thrust::device_ptr<uint>(dGridParticleHash + nParticles),
+            thrust::device_ptr<uint>(dGridParticleIndex));
+    }
+
+    // reorder particle arrays into sorted order and find start and end of each cell
+    void reorderParticlesInDevice(uint* cellStart, uint* cellEnd, float* sortedPos, float* sortedVel, uint* gridParticleHash, uint* gridParticleIndex,
+        float* oldPos, float* oldVel, uint numParticles, uint numCells)
+    {
+        uint numThreads, numBlocks;
+        computeGridSize(numParticles, 256, numBlocks, numThreads);
+
+        // set all cells to empty
+        cudaMemset(cellStart, 0xffffffff, numCells * sizeof(uint));
+
+        uint smemSize = sizeof(uint) * (numThreads + 1);
+        reorderDataAndFindCellStartD << < numBlocks, numThreads, smemSize >> > (
+                                          cellStart,
+                                          cellEnd,
+                                          (float4*)sortedPos,
+                                          (float4*)sortedVel,
+                                          gridParticleHash,
+                                          gridParticleIndex,
+                                          (float4*)oldPos,
+                                          (float4*)oldVel,
+                                          numParticles);
+    }
+
+    // process collisions with hash
+    void collideWithHashInDevice(float* newVel,
+        float* sortedPos,
+        float* sortedVel,
+        uint* gridParticleIndex,
+        uint* cellStart,
+        uint* cellEnd,
+        uint   numParticles,
+        uint   numCells)
+    {
+        // thread per particle
+        uint numThreads, numBlocks;
+        computeGridSize(numParticles, 128, numBlocks, numThreads);
+
+        // execute the kernel
+        collideParticlesHash << < numBlocks, numThreads >> > ((float4*)newVel,
+            (float4*)sortedPos,
+            (float4*)sortedVel,
+            gridParticleIndex,
+            cellStart,
+            cellEnd,
+            numParticles);
+    }
+
 }

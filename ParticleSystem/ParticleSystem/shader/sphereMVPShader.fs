@@ -5,6 +5,7 @@ in vec3 pColor;
 out vec4 FragColor;
 
 uniform vec3 lightDir;
+
 float border = 0.1f;
 
 void main()
