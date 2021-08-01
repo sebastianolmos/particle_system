@@ -14,6 +14,7 @@
 #include "utils/performanceMonitor.h"
 #include "menu.h"
 #include "system.h"
+#include "voxelShape.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -168,6 +169,16 @@ void runDisplay()
     // Create collision shapes
     Shader dirLightShader("shader/lightMVPShader.vs", "shader/lightMVPShader.fs");
     psystem->createSphereCollider();
+
+
+    VoxelShape vShape = VoxelShape("../assets/torus.txt");
+    int si = vShape.getSize();
+    int* vl = vShape.getVoxelsArray();
+    for (int i = 0; i < si; i++)
+    {
+        cout << vl[3 * i + 0] << ", " << vl[3 * i + 1] << ", " << vl[3 * i + 2] << endl;
+    }
+
 
     // Set system params
     psystem->setGravity(gravity.x, gravity.y, gravity.z);

@@ -104,6 +104,7 @@
     <ClInclude Include="system.h" />
     <ClInclude Include="utils\camera3d.h" />
     <ClInclude Include="utils\performanceMonitor.h" />
+    <ClInclude Include="voxelShape.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\basicMVPShader.fs" />
