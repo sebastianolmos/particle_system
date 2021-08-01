@@ -182,6 +182,7 @@ float3 collideSpheres(float3 posA, float3 posB,
     return force;
 }
 
+
 __device__ float3 collideWithCell(int3 gridPos, uint index, float3 pos, float3 vel, float4* oldPos, float4* oldVel, uint* gridCounters, uint* gridCells)
 {
     uint gridHash = calcGridHash(gridPos);
@@ -416,8 +417,10 @@ void collideParticlesHash(float4* newVel,               // output: new velocity
     }
 
     // collide with cursor sphere
-    // force += collideSpheres(pos, params.colliderPos, vel, make_float3(0.0f, 0.0f, 0.0f), params.particleRadius, params.colliderRadius, 0.0f);
-
+    if (params.collideShape)
+    {
+        force += collideSpheres(pos, params.collidePos, vel, make_float3(0.0f, 0.0f, 0.0f), params.particleRadius, params.collideSize / 2.0, 0.0f);
+    }
     // write new velocity back to original unsorted location
     uint originalIndex = gridParticleIndex[index];
     newVel[originalIndex] = make_float4(vel + force, 0.0f);

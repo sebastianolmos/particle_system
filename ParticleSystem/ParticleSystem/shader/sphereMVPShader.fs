@@ -18,7 +18,7 @@ void main()
 		discard; // kill pixels outside circle
 	N.z = sqrt(1.0-mag);
 	// calculate lighting
-	float diffuse = max(0.0, dot(lightDir, N));
+	float diffuse = max(0.0, dot(-lightDir, N));
 	vec4 ambient = vec4(pColor *0.3f,1);
 	
 	vec4 result = vec4(0.0f, 0.0f, 0.0f, 0.0f);

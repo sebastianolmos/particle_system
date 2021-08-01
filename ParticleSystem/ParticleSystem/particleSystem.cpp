@@ -29,6 +29,7 @@
 #define GRID_SIZE_Y     128
 #define GRID_SIZE_Z     128
 #define NUM_PARTICLES   262144
+#define MAX_NUM_PARTICLES   524288
 
 using namespace std;
 
@@ -56,9 +57,10 @@ float spring = 0.5f;
 float shear = 0.1f;
 float attraction = 0.0f;
 bool collideObject = false;
-uint objectToCollide = 0;
-
-int ballr = 10;
+uint objectToCollide = 1;
+bool activePhong = false;
+float pCollideObject[3] = { 0.0f, 0.0f, 0.0f };
+float sCollideObject = 1.0f;
 
 // camera
 Camera3D camera(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -78,8 +80,8 @@ float deltaTime = 0.0f;	// time between current frame and last frame
 // initialize particle system
 void initParticleSystem(int numParticles, uint3 gridSize)
 {
-    psystem = new System(numParticles, gridSize);
-    psystem->reset();
+    psystem = new System(numParticles, gridSize, MAX_NUM_PARTICLES);
+    psystem->reset(NUM_PARTICLES);
 }
 
 void cleanup()
@@ -147,17 +149,17 @@ void runDisplay()
     // build and compile our shader program
     // ------------------------------------
     Shader sphereShader("shader/sphereMVPShader.vs", "shader/sphereMVPShader.fs");
-
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-
     initParticleSystem(numParticles, gridSize);
     initParams();
+    Shader phongSphereShader("shader/phongMVPShader.vs", "shader/phongMVPShader.fs");
 
     camera.setCenter(glm::vec3(psystem->getCenter().x,
         psystem->getCenter().y,
         psystem->getCenter().z/4.0f));
     camera.setRadius(psystem->getCenter().x * 2.0f);
+
 
     // Create collision box with lines
     Shader boxShader("shader/basicMVPShader.vs", "shader/basicMVPShader.fs");
@@ -175,6 +177,7 @@ void runDisplay()
     psystem->setSpring(spring);
     psystem->setShear(shear);
     psystem->setAttraction(attraction);
+    psystem->setColliderPosRef(pCollideObject);
 
     // Set Menu Params
     menu.setGravity(&gravity.x, &gravity.y, &gravity.z);
@@ -188,6 +191,9 @@ void runDisplay()
     menu.setObjectSelector(&objectToCollide);
     menu.updateNumParticles(psystem->getNumParticles());
     menu.setTimeStep(&timeStep);
+    menu.setPhongCheck(&activePhong);
+    menu.setCollideObjectParams(pCollideObject, &sCollideObject);
+    menu.setSystem(psystem);
 
     float t1 = (float)glfwGetTime();
     float t0 = (float)glfwGetTime();
@@ -225,6 +231,9 @@ void runDisplay()
         psystem->setSpring(spring);
         psystem->setShear(shear);
         psystem->setAttraction(attraction);
+        psystem->setCollideObjectPos(pCollideObject[0], pCollideObject[1], pCollideObject[2]);
+        psystem->setCollideObjectSize(sCollideObject);
+        psystem->setCollideObjectShape(objectToCollide);
 
         psystem->update(timeStep);
 
@@ -238,31 +247,43 @@ void runDisplay()
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_DEPTH_TEST);
         // render the triangle
-        sphereShader.use();
+        
+
         //glPointSize(100.0f);
 
         // pass projection matrix to shader (note that in this case it could change every frame)
         glm::mat4 projection = glm::perspective(glm::radians(camera.Fovy), (float)window_width / (float)window_height, 0.1f, 100.0f);
-        sphereShader.setMat4("projection", projection);
 
         // camera/view transformation
         glm::mat4 view = camera.GetViewMatrix();
-        sphereShader.setMat4("view", view);
 
         glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        sphereShader.setMat4("model", model);
+        glm::vec3 lightDirection = glm::vec3(-1.0f, -1.0f, -1.0f);
 
 
-        if (points)
+        if (!activePhong)
         {
-            sphereShader.setFloat("pointRadius", 1);
-            sphereShader.setFloat("pointScale", 1);
-        }
-        else {
+            sphereShader.use();
+            sphereShader.setMat4("view", view);
+            sphereShader.setMat4("projection", projection);
+            sphereShader.setMat4("model", model);
             sphereShader.setFloat("pointRadius", psystem->getParticleRadius());
             sphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
+            sphereShader.setVec3("lightDir", lightDirection);
         }
-        sphereShader.setVec3("lightDir", glm::vec3(1.0f, 1.0f, 0.0f));
+        else
+        {
+            phongSphereShader.use();
+            phongSphereShader.setMat4("view", view);
+            phongSphereShader.setMat4("projection", projection);
+            phongSphereShader.setMat4("model", model);
+            phongSphereShader.setFloat("pointRadius", psystem->getParticleRadius());
+            phongSphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
+            phongSphereShader.setVec3("lightDir", lightDirection);
+            phongSphereShader.setVec3("camPos", camera.Position);
+            phongSphereShader.setVec3("camR", camera.Right);
+            phongSphereShader.setVec3("camU", camera.Up);
+        }
 
         psystem->renderParticles();
 
@@ -275,13 +296,19 @@ void runDisplay()
             dirLightShader.setMat4("view", view);
             float3 sPos = psystem->getCollideObjectPos();
             glm::mat4 cSmodel = glm::mat4(1.0f);
-            //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+            cSmodel = glm::translate(cSmodel, glm::vec3(pCollideObject[0], pCollideObject[1], pCollideObject[2]));
             float collSize = psystem->getCollideObjectSize();
-            //model = glm::scale(model, glm::vec3(1.1f, 1.1f, 1.1f));
+            cSmodel = glm::scale(cSmodel, glm::vec3(sCollideObject, sCollideObject, sCollideObject));
             dirLightShader.setMat4("model", cSmodel);
             dirLightShader.setVec3("lightDirection", glm::vec3(-1.0f, -1.0f, -1.0f));
             dirLightShader.setVec3("viewPos", camera.Position);
             psystem->renderSphereCollider();
+        }
+        else {
+            pCollideObject[0] = -0.5f;
+            pCollideObject[1] = 2.0f;
+            pCollideObject[2] = 0.0f;
+            sCollideObject = 0.5;
         }
 
 
@@ -408,7 +435,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     camera.SetCurrentMousePos(posX, posY);
     if (collideObject)
     {
-        psystem->setMousePos(xpos, ypos, camera.Right, camera.Front, camera.Radius);
+        psystem->setMousePos(posX, posY, camera.nRight, camera.nFront, camera.Radius);
     }
 }
 

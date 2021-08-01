@@ -25,7 +25,7 @@ using namespace std;
 class System 
 {
 public:
-	System(uint numParticles, uint3 gridSize);
+	System(uint numParticles, uint3 gridSize, uint maxNumParticles);
 	~System();
 	
 	void update(float deltaTime);
@@ -152,13 +152,36 @@ public:
 		colliderDrag = value;
 	}
 
-	void reset();
+	void setColliderPosRef(float* ref)
+	{
+		colliderPos = ref;
+	}
+	void setNumberOfParticles(int value)
+	{
+		m_numParticles = value;
+	}
+
+	uint getMaxNumParticles()
+	{
+		return m_maxNumParticles;
+	}
+
+	void setMaxNumParticles(uint num)
+	{
+		m_maxNumParticles = num;
+	}
+
+	void reset(uint numParticles);
 
 	void createSphereCollider();
 	void renderSphereCollider();
-	void createBoxCollider();
-	void renderBoxCollider();
 	void setMousePos(float xPos, float yPos, glm::vec3 Right, glm::vec3 Front, float radius);
+	void resetRandom(uint numParticles);
+	void resetCube(float size);
+	void resetSphere(float size);
+	void addPlane(float height);
+	void addCube(float height);
+	void addSphere(float height);
 
 private:
 	System() {};
@@ -171,6 +194,7 @@ private:
 	void initGrid(uint* size, uint numParticles);
 
 private:
+	uint m_maxNumParticles;
 	uint m_numParticles;
 
 	float* m_hostPos;
@@ -208,16 +232,16 @@ private:
 	uint m_cSphereVBO;
 	uint m_cSphereEBO;
 	uint m_cSphereIndices;
-	uint m_cBoxVAO;
-	uint m_cBoxVBO;
-	uint m_cBoxEBO;
+
+	float* colliderPos;
 
 	bool colliderDrag = false;
 	glm::vec2 m_mousePos;
 };
 
-System::System(uint numParticles, uint3 gridSize) :
+System::System(uint numParticles, uint3 gridSize, uint maxNumParticles) :
 	m_numParticles(numParticles),
+	m_maxNumParticles(maxNumParticles),
 	m_hostPos(0),
 	m_hostVel(0),
 	m_devicePos(0),
@@ -306,15 +330,16 @@ uint System::createBuffers(uint size)
 	return vbo;
 }
 
-void System::reset()
+void System::reset(uint numParticles)
 {
 	uint gridSize[3];
 	gridSize[0] = m_gridSize.x;
 	gridSize[1] = m_gridSize.y;
 	gridSize[2] = m_gridSize.z;
-	initGrid(gridSize, m_numParticles);
-	setPosArray(m_hostPos, 0, m_numParticles);
-	setVelArray(m_hostVel, 0, m_numParticles);
+	m_numParticles = numParticles;
+	initGrid(gridSize, numParticles);
+	setPosArray(m_hostPos, 0, numParticles);
+	setVelArray(m_hostVel, 0, numParticles);
 }
 
 void System::_initialize(int numParticles)
@@ -322,13 +347,13 @@ void System::_initialize(int numParticles)
     m_numParticles = numParticles;
 
     // allocate host storage
-    m_hostPos = new float[m_numParticles * 4];
-    m_hostVel = new float[m_numParticles * 4];
-    memset(m_hostPos, 0, m_numParticles * 4 * sizeof(float));
-    memset(m_hostVel, 0, m_numParticles * 4 * sizeof(float));
+    m_hostPos = new float[m_maxNumParticles * 4];
+    m_hostVel = new float[m_maxNumParticles * 4];
+    memset(m_hostPos, 0, m_maxNumParticles * 4 * sizeof(float));
+    memset(m_hostVel, 0, m_maxNumParticles * 4 * sizeof(float));
 
     // allocate GPU data
-    unsigned int memSize = sizeof(float) * 4 * m_numParticles;
+    unsigned int memSize = sizeof(float) * 4 * m_maxNumParticles;
 
 
     m_posVBO = createBuffers(memSize);
@@ -352,8 +377,8 @@ void System::_initialize(int numParticles)
 	allocateArray((void**)&m_deviceSortedPos, memSize);
 	allocateArray((void**)&m_deviceSortedVel, memSize);
 
-	allocateArray((void**)&m_deviceGridParticleHash, m_numParticles * sizeof(uint));
-	allocateArray((void**)&m_deviceGridParticleIndex, m_numParticles * sizeof(uint));
+	allocateArray((void**)&m_deviceGridParticleHash, m_maxNumParticles * sizeof(uint));
+	allocateArray((void**)&m_deviceGridParticleIndex, m_maxNumParticles * sizeof(uint));
 
 	allocateArray((void**)&m_deviceCellStart, m_numGridCells * sizeof(uint));
 	allocateArray((void**)&m_deviceCellEnd, m_numGridCells * sizeof(uint));
@@ -496,12 +521,16 @@ void System::createBox()
 	// color attribute
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 void System::renderBox()
 {
 	glBindVertexArray(m_boxVAO);
 	glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
 }
 
 inline float lerp(float a, float b, float t)
@@ -578,6 +607,7 @@ void System::renderParticles()
 {
 	glBindVertexArray(m_posVAO);
 	glDrawArrays(GL_POINTS, 0, m_numParticles);
+	glBindVertexArray(0);
 }
 
 void System::createSphereCollider()
@@ -662,6 +692,7 @@ void System::createSphereCollider()
 	// normal attribute
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
 	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	glBindVertexArray(0);
 }
@@ -670,6 +701,7 @@ void System::renderSphereCollider()
 {
 	glBindVertexArray(m_cSphereVAO);
 	glDrawElements(GL_TRIANGLES, m_cSphereIndices, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(0);
 }
 
 void System::setMousePos(float xPos, float yPos, glm::vec3 Right, glm::vec3 Front, float radius)
@@ -678,12 +710,395 @@ void System::setMousePos(float xPos, float yPos, glm::vec3 Right, glm::vec3 Fron
 	if (colliderDrag)
 	{
 		glm::vec2 delta = (pos2d - m_mousePos) * -1.0f;
-		glm::vec3 center = glm::vec3( m_params.collidePos.x, m_params.collidePos.y, m_params.collidePos.z);
-		center += Right * delta.x * 2.0f * radius / 4.0f
-			+ Front * delta.y * 2.0f * radius / 4.0f;
-		m_params.collidePos = make_float3(center.x, center.y, center.z);
+		glm::vec3 center = glm::vec3(colliderPos[0], colliderPos[1], colliderPos[2]);
+		center += -Right * delta.x * 2.0f * radius / 4.0f
+			- Front * delta.y * 2.0f * radius / 4.0f;
+		colliderPos[0] = center.x;
+		colliderPos[1] = center.y;
+		colliderPos[2] = center.z;
 	}
 
 	m_mousePos.x = xPos;
 	m_mousePos.y = yPos;
+}
+
+inline float frand()
+{
+	return rand() / (float)RAND_MAX;
+}
+
+// create a color ramp
+void randomColorRamp(float t, float* r)
+{
+	const int ncolors = 2;
+	float c[ncolors][3] =
+	{
+		{ 0.3, 0.0, 0.0, },
+		{ 1.0, 0.4, 0.1, }
+	};
+	t = t * (ncolors - 1);
+	int i = (int)t;
+	float u = t - floor(t);
+	r[0] = lerp(c[i][0], c[i + 1][0], u);
+	r[1] = lerp(c[i][1], c[i + 1][1], u);
+	r[2] = lerp(c[i][2], c[i + 1][2], u);
+}
+
+void System::resetRandom(uint numParticles)
+{
+	int p = 0, v = 0;
+
+	for (uint i = 0; i < numParticles; i++)
+	{
+		float point[3];
+		point[0] = frand();
+		point[1] = frand();
+		point[2] = frand();
+		m_hostPos[p++] = 4 * (point[0]);
+		m_hostPos[p++] = 4 * (point[1]);
+		float tmpZ = 4 * (point[2]);
+		m_hostPos[p++] = tmpZ;
+
+		float color[3] = {};
+		randomColorRamp((tmpZ /4.0f), color);
+		m_hostPos[p++] = packColor(color[0] * 255, color[1] * 255, color[2] * 255);
+
+		m_hostVel[v++] = 0.0f;
+		m_hostVel[v++] = 0.0f;
+		m_hostVel[v++] = 0.0f;
+		m_hostVel[v++] = 0.0f;
+	}
+	m_numParticles = numParticles;
+	setPosArray(m_hostPos, 0, numParticles);
+	setVelArray(m_hostVel, 0, numParticles);
+}
+
+// create a color ramp
+void cubeColorRamp(float t, float* r)
+{
+	const int ncolors = 2;
+	float c[ncolors][3] =
+	{
+
+		{0.639, 0.494, 0.141},
+		{1, 0.870, 0.501}
+	};
+	t = t * (ncolors - 1);
+	int i = (int)t;
+	float u = t - floor(t);
+	r[0] = lerp(c[i][0], c[i + 1][0], u);
+	r[1] = lerp(c[i][1], c[i + 1][1], u);
+	r[2] = lerp(c[i][2], c[i + 1][2], u);
+}
+
+void System::resetCube(float size)
+{
+	float init = 1.2f;
+	int c = 0;
+	int p = 0, v = 0;
+
+	for (uint x = 0; x < size; x++)
+	{
+		for (uint y = 0; y < size; y++)
+		{
+			for (uint z = 0; z < size; z++)
+			{
+				if (z == 0) {
+					m_hostPos[p++] = init + (float)x * m_params.cellSize.x + m_params.particleRadius + 0.01f;
+					m_hostPos[p++] = init + (float)y * m_params.cellSize.y + m_params.particleRadius + 0.01f;
+				}
+				else
+				{
+					m_hostPos[p++] = init + (float)x * m_params.cellSize.x + m_params.particleRadius;
+					m_hostPos[p++] = init + (float)y * m_params.cellSize.y + m_params.particleRadius;
+				}
+				float tmpZ = init + (float)z * m_params.cellSize.z + m_params.particleRadius;
+				m_hostPos[p++] = tmpZ;
+
+				float color[3] = {};
+				cubeColorRamp((((float)z/(float)size)), color);
+				m_hostPos[p++] = packColor(color[0] * 255, color[1] * 255, color[2] * 255);
+
+				m_hostVel[v++] = 0.0f;
+				m_hostVel[v++] = 0.0f;
+				m_hostVel[v++] = 0.0f;
+				m_hostVel[v++] = 0.0f;
+				c++;
+			}
+		}
+	}
+	m_numParticles = c;
+	setPosArray(m_hostPos, 0, c);
+	setVelArray(m_hostVel, 0, c);
+
+}
+
+// create a color ramp
+void sphereColorRamp(float t, float* r)
+{
+	const int ncolors = 2;
+	float c[ncolors][3] =
+	{
+
+		{0.760, 0, 0.427},
+		{1, 0.878, 0.968}
+	};
+	t = t * (ncolors - 1);
+	int i = (int)t;
+	float u = t - floor(t);
+	r[0] = lerp(c[i][0], c[i + 1][0], u);
+	r[1] = lerp(c[i][1], c[i + 1][1], u);
+	r[2] = lerp(c[i][2], c[i + 1][2], u);
+}
+
+void System::resetSphere(float size)
+{
+	float init = 1.2f;
+	float center = init + (size * m_params.cellSize.x / 2.0f);
+	float radius = (size * m_params.cellSize.x / 2.0f);
+
+	int c = 0;
+	int p = 0, v = 0;
+
+	for (uint x = 0; x < size; x++)
+	{
+		for (uint y = 0; y < size; y++)
+		{
+			for (uint z = 0; z < size; z++)
+			{
+				float tmpX = init + (float)x * m_params.cellSize.x + m_params.particleRadius;
+				float tmpY = init + (float)y * m_params.cellSize.y + m_params.particleRadius;
+				float tmpZ = init + (float)z * m_params.cellSize.z + m_params.particleRadius;
+				if (((center - tmpX) * (center - tmpX) +
+					(center - tmpY) * (center - tmpY) +
+					(center - tmpZ) * (center - tmpZ))
+					< radius * radius)
+				{
+					if (z < int(size/3))
+					{
+						m_hostPos[p++] = tmpX + ((frand() * 2.0f) - 1.0f) * 0.001;
+						m_hostPos[p++] = tmpY + ((frand() * 2.0f) - 1.0f) * 0.001;
+					}
+					else
+					{
+						m_hostPos[p++] = tmpX ;
+						m_hostPos[p++] = tmpY;
+					}
+					m_hostPos[p++] = tmpZ ;
+
+					float color[3] = {};
+					sphereColorRamp((((float)z / (float)size)), color);
+					m_hostPos[p++] = packColor(color[0] * 255, color[1] * 255, color[2] * 255);
+
+					m_hostVel[v++] = 0.0f;
+					m_hostVel[v++] = 0.0f;
+					m_hostVel[v++] = 0.0f;
+					m_hostVel[v++] = 0.0f;
+					c++;
+				}
+				
+			}
+		}
+	}
+	m_numParticles = c;
+	setPosArray(m_hostPos, 0, c);
+	setVelArray(m_hostVel, 0, c);
+}
+// create a color ramp
+void plColorRamp(float t, float* r)
+{
+	const int ncolors = 2;
+	float c[ncolors][3] =
+	{
+
+		{0, 0.141, 0.521},
+		{0.760, 0.831, 1}
+	};
+	t = t * (ncolors - 1);
+	int i = (int)t;
+	float u = t - floor(t);
+	r[0] = lerp(c[i][0], c[i + 1][0], u);
+	r[1] = lerp(c[i][1], c[i + 1][1], u);
+	r[2] = lerp(c[i][2], c[i + 1][2], u);
+}
+
+void System::addPlane(float height)
+{
+	uint start = m_numParticles;
+	uint c = start;
+	int p = m_numParticles*4, v = m_numParticles * 4 ;
+	getPosArray();
+	getVelArray();
+	for (uint x = 0; x < 128; x++)
+	{
+		for (uint y = 0; y < 128; y++)
+		{
+			if (c < m_maxNumParticles) 
+			{
+				m_hostPos[c * 4 + 0] = (float)x * m_params.cellSize.x + m_params.particleRadius;
+				m_hostPos[c * 4 + 1] = (float)y * m_params.cellSize.y + m_params.particleRadius;
+				m_hostPos[c * 4 + 2] = height;
+
+				float color[3] = {};
+				plColorRamp((((float)x / (float)128)), color);
+				m_hostPos[c * 4 + 3] = packColor(color[0] * 255, color[1] * 255, color[2] * 255);
+
+				m_hostVel[c * 4 + 0] = 0.0f;
+				m_hostVel[c * 4 + 1] = 0.0f;
+				m_hostVel[c * 4 + 2] = 0.0f;
+				m_hostVel[c * 4 + 3] = 0.0f;
+				c++;
+			}
+			
+		}
+	}
+	uint tmpN = m_numParticles;
+	m_numParticles = c;
+	setPosArray(m_hostPos, 0, c);
+	setVelArray(m_hostVel, 0, c);
+
+}
+
+// create a color ramp
+void cbColorRamp(float t, float* r)
+{
+	const int ncolors = 2;
+	float c[ncolors][3] =
+	{
+
+		{0.427, 0, 0.560},
+		{0.972, 0.8, 1}
+	};
+	t = t * (ncolors - 1);
+	int i = (int)t;
+	float u = t - floor(t);
+	r[0] = lerp(c[i][0], c[i + 1][0], u);
+	r[1] = lerp(c[i][1], c[i + 1][1], u);
+	r[2] = lerp(c[i][2], c[i + 1][2], u);
+}
+
+void System::addCube(float height)
+{
+	uint start = m_numParticles;
+	uint c = start;
+	getPosArray();
+	getVelArray();
+	uint size = 24;
+	float init = 1.6f;
+	for (uint x = 0; x < size; x++)
+	{
+		for (uint y = 0; y < size; y++)
+		{
+			for (uint z = 0; z < size; z++)
+			{
+				if (c < m_maxNumParticles)
+				{
+					if (z == 0) {
+						m_hostPos[c * 4 + 0] = init + (float)x * m_params.cellSize.x + m_params.particleRadius + 0.01f;
+						m_hostPos[c * 4 + 1] = init + (float)y * m_params.cellSize.y + m_params.particleRadius + 0.01f;
+					}
+					else
+					{
+						m_hostPos[c * 4 + 0] = init + (float)x * m_params.cellSize.x + m_params.particleRadius;
+						m_hostPos[c * 4 + 1] = init + (float)y * m_params.cellSize.y + m_params.particleRadius;
+					}
+					float tmpZ = height + (float)z * m_params.cellSize.z + m_params.particleRadius;
+					m_hostPos[c * 4 + 2] = tmpZ;
+
+					float color[3] = {};
+					cbColorRamp((((float)z / (float)size)), color);
+					m_hostPos[c * 4 + 3] = packColor(color[0] * 255, color[1] * 255, color[2] * 255);
+
+					m_hostVel[c * 4 + 0] = 0.0f;
+					m_hostVel[c * 4 + 1] = 0.0f;
+					m_hostVel[c * 4 + 2] = 0.0f;
+					m_hostVel[c * 4 + 3] = 0.0f;
+					c++;
+				}
+			}
+		}
+	}
+
+
+	uint tmpN = m_numParticles;
+	m_numParticles = c;
+	setPosArray(m_hostPos, 0, c);
+	setVelArray(m_hostVel, 0, c);
+}
+
+// create a color ramp
+void spColorRamp(float t, float* r)
+{
+	const int ncolors = 2;
+	float c[ncolors][3] =
+	{
+
+		{0, 0.2, 0.027},
+		{0.380, 1, 0.019}
+	};
+	t = t * (ncolors - 1);
+	int i = (int)t;
+	float u = t - floor(t);
+	r[0] = lerp(c[i][0], c[i + 1][0], u);
+	r[1] = lerp(c[i][1], c[i + 1][1], u);
+	r[2] = lerp(c[i][2], c[i + 1][2], u);
+}
+
+void System::addSphere(float height)
+{
+	uint start = m_numParticles;
+	uint c = start;
+	getPosArray();
+	getVelArray();
+	uint size = 32;
+	float init = 1.4f;
+	float3 center = make_float3(init + (size * m_params.cellSize.x / 2.0f), init + (size * m_params.cellSize.x / 2.0f), 
+		height + (size * m_params.cellSize.x / 2.0f));
+	float radius = (size * m_params.cellSize.x / 2.0f);
+	for (uint x = 0; x < size; x++)
+	{
+		for (uint y = 0; y < size; y++)
+		{
+			for (uint z = 0; z < size; z++)
+			{
+				if (c < m_maxNumParticles)
+				{
+					float tmpX = init + (float)x * m_params.cellSize.x + m_params.particleRadius;
+					float tmpY = init + (float)y * m_params.cellSize.y + m_params.particleRadius;
+					float tmpZ = height + (float)z * m_params.cellSize.z + m_params.particleRadius;
+					if (((center.x - tmpX) * (center.x - tmpX) +
+						(center.y - tmpY) * (center.y - tmpY) +
+						(center.z - tmpZ) * (center.z - tmpZ))
+						< radius * radius)
+					{
+						if (z < int(size / 3))
+						{
+							m_hostPos[c * 4 + 0] = tmpX + ((frand() * 2.0f) - 1.0f) * 0.0001;
+							m_hostPos[c * 4 + 1] = tmpY + ((frand() * 2.0f) - 1.0f) * 0.0001;
+						}
+						else
+						{
+							m_hostPos[c * 4 + 0] = tmpX;
+							m_hostPos[c * 4 + 1] = tmpY;
+						}
+						m_hostPos[c * 4 + 2] = tmpZ;
+						float color[3] = {};
+						spColorRamp((((float)z / (float)size)), color);
+						m_hostPos[c * 4 + 3] = packColor(color[0] * 255, color[1] * 255, color[2] * 255);
+
+						m_hostVel[c * 4 + 0] = 0.0f;
+						m_hostVel[c * 4 + 1] = 0.0f;
+						m_hostVel[c * 4 + 2] = 0.0f;
+						m_hostVel[c * 4 + 3] = 0.0f;
+						c++;
+					}
+				}
+			}
+		}
+	}
+
+	uint tmpN = m_numParticles;
+	m_numParticles = c;
+	setPosArray(m_hostPos, 0, c);
+	setVelArray(m_hostVel, 0, c);
 }

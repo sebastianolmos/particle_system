@@ -9,6 +9,7 @@
 
 
 #include "kernelParams.cuh"
+#include "system.h"
 
 class Menu {
 public:
@@ -71,6 +72,22 @@ public:
         timeStep = step;
     }
 
+    void setPhongCheck(bool* ref)
+    {
+        activePhong = ref;
+    }
+
+    void setCollideObjectParams(float* pos, float* size)
+    {
+        pCollideObject = pos;
+        sCollideObject = size;
+    }
+
+    void setSystem(System* ref)
+    {
+        pSystem = ref;
+    }
+
     void updateNumParticles(uint num)
     {
         numParticles = num;
@@ -93,8 +110,12 @@ private:
     float* attraction;
     bool* collideObject;
     unsigned int* objectToCollide;
+    bool* activePhong;
+    float* sCollideObject;
+    float* pCollideObject;
 
     uint numParticles;
+    System* pSystem;
 };
 
 Menu::~Menu()
@@ -193,20 +214,13 @@ void Menu::render()
         ImGui::Separator();
 
         ImGui::Checkbox("Object to Collide?", collideObject);
+        ImGui::SameLine();
+        ImGui::Checkbox("Phong llumination?", activePhong);
         if (*collideObject)
         {
             ImGui::PushID(10);
-            float s = 1.9f;
-            ImGui::SliderFloat("Size", &s, 0.000, 1.0f);
-            if (ImGui::Button("Sphere"))
-            {
-
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Cube"))
-            {
-
-            }
+            ImGui::SliderFloat("Height", pCollideObject + 2, 0.0, 4.0f);
+            ImGui::SliderFloat("Size", sCollideObject, 0.1, 4.0f);
             ImGui::PopID();
             ImGui::Separator();
         }
@@ -215,27 +229,25 @@ void Menu::render()
 
         if (ImGui::CollapsingHeader("Particle Configuration"))
         {
-            float h;
-            ImGui::SliderFloat("Height", &h, 0.000, 1.0f);
             ImGui::PushID(4);
             if (ImGui::Button("Plane"))
             {
-
+                pSystem->reset(262144);
             }
             ImGui::SameLine();
             if (ImGui::Button("Cube"))
             {
-
+                pSystem->resetCube(64);
             }
             ImGui::SameLine();
             if (ImGui::Button("Sphere"))
             {
-
+                pSystem->resetSphere(64);
             }
             ImGui::SameLine();
             if (ImGui::Button("Random"))
             {
-
+                pSystem->resetRandom(262144);
             }
             ImGui::SameLine();
             if (ImGui::Button("Obj"))
@@ -247,22 +259,20 @@ void Menu::render()
         ImGui::Separator();
         if (ImGui::CollapsingHeader("Instance Particles"))
         {
-            float h1;
             ImGui::PushID(5);
-            ImGui::SliderFloat("Height", &h1, 0.000, 1.0f);
             if (ImGui::Button("Plane"))
             {
-
+                pSystem->addPlane(2.5f);
             }
             ImGui::SameLine();
             if (ImGui::Button("Cube"))
             {
-
+                pSystem->addCube(2.5f);
             }
             ImGui::SameLine();
             if (ImGui::Button("Sphere"))
             {
-
+                pSystem->addSphere(2.2f);
             }
             ImGui::SameLine();
             if (ImGui::Button("Obj"))

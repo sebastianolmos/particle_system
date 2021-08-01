@@ -31,7 +31,7 @@ enum Camera_Rotation {
 const float SPEED = 20.5f;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 45.0f;
-const float FOVY = 45.0f;
+const float FOVY = 60.0f;
 const float THETA = 50.0f;
 const float PHI = 0.0f;
 const float ROTATION = 75.0f;
@@ -47,8 +47,10 @@ public:
     glm::vec3 Position;
     glm::vec3 Center;
     glm::vec3 Front;
+    glm::vec3 nFront;
     glm::vec3 Up;
     glm::vec3 Right;
+    glm::vec3 nRight;
     glm::vec3 WorldUp;
     float Phi;
     float Theta;
@@ -77,7 +79,9 @@ public:
         rotationSpeed(ROTATION),
         Phi(PHI), Fovy(FOVY),
         Front(glm::vec3(1.0f, 0.0f, 0.0f)),
+        nFront(glm::vec3(1.0f, 0.0f, 0.0f)),
         Right(glm::vec3(0.0f, 1.0f, 0.0f)),
+        nRight(glm::vec3(0.0f, 1.0f, 0.0f)),
         LastMousePos(glm::vec2(0.0f)),
         CurrentMousePos(glm::vec2(0.0f)),
         centerDrag(false),
@@ -166,14 +170,11 @@ public:
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset)
     {
-        if (CurrentMousePos.x > screenOffset)
-        {
-            Radius -= (float)yoffset * 0.2f;
-            if (Radius < 1.0f)
-                Radius = 1.0f;
-            if (Radius > 100.0f)
-                Radius = 100.0f;
-        }
+        Radius -= (float)yoffset * 0.2f;
+        if (Radius < 1.0f)
+            Radius = 1.0f;
+        if (Radius > 100.0f)
+            Radius = 100.0f;
 
     }
 
@@ -195,7 +196,7 @@ public:
     void SetCurrentMousePos(float xPos, float yPos)
     {
         glm::vec2 pos2d{ xPos, yPos };
-        if (rotDrag && (xPos > screenOffset))
+        if (rotDrag)
         {
             glm::vec2 delta = (pos2d - CurrentMousePos);
             Phi -= delta.x * rotSensitivity;
@@ -206,11 +207,12 @@ public:
         if (Theta < 01.0f)
             Theta = 01.0f;
 
-        if (centerDrag && (yPos > screenOffset))
+        if (centerDrag)
         {
             glm::vec2 delta = (pos2d - CurrentMousePos) * -1.0f;
-            Center += Right * delta.x * centerSensitivty * Radius / 4.0f
-                + Front * delta.y * centerSensitivty * Radius / 4.0f;
+            
+            Center += nRight * delta.x * centerSensitivty * Radius / 4.0f
+                + nFront * delta.y * centerSensitivty * Radius / 4.0f;
         }
         else if (vertDrag)
         {
@@ -229,11 +231,13 @@ private:
     {
         // calculate the new Front vector
         glm::vec3 front = glm::normalize(Center - Position);
-        Front = glm::vec3(front.x, front.y, 0.0f);
+        Front = glm::vec3(front.x, front.y, front.z);
         Front = glm::normalize(Front);
         // also re-calculate the Right and Up vector
-        Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-        Up = glm::normalize(glm::cross(Right, Front));
+        nRight = glm::normalize(glm::cross(Front, WorldUp));
+        nFront = glm::normalize(glm::cross(WorldUp, nRight));// normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        Up = glm::normalize(glm::cross(nRight, Front));
+        Right = glm::normalize(glm::cross(Front, Up));
     }
 
 };
