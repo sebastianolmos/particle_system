@@ -2,12 +2,12 @@
 
 ## Descripción
 Proyecto final del curso CC7515-1 Computación en GPU. Corresponde a una escena que simula colisiones de esferas en un espacio de 3 dimensiones, encerradas en una caja.
-Para el calculo de colisiones se utilizo la herramienta CUDA con el lenguaje de programacion C++, basandose en en el articulo [Particle Simulation using CUDA](https://developer.download.nvidia.com/assets/cuda/files/particles.pdf) de Simon Green. Ademas se utiliza de referencia la simulacion que se encuentra en los ejemplos de CUDA Toolkit. 
+Para el calculo de colisiones se utilizo la herramienta CUDA con el lenguaje de programacion C++, basandose en en el articulo [Particle Simulation using CUDA](https://developer.download.nvidia.com/assets/cuda/files/particles.pdf) de Simon Green. Además se utiliza de referencia la simulación que se encuentra en los ejemplos de CUDA Toolkit.
 
 ## Librerías usadas
 Se uso el lenguaje C++ con la siguientes librerias:
-- [Glad](https://glad.dav1d.de/) : Libreria necesaria para cargar los punteros a funciones de OpenGL. En este proyecto se uso OpenGL 4.5
-- [GLFW3](https://www.glfw.org/) : Libreria usada con OpenGl que provee una API para manejar ventanas
+- [Glad](https://glad.dav1d.de/) : Libreria necesaria para cargar los punteros a funciones de OpenGL. En este proyecto se usó OpenGL 3.3
+- [GLFW3](https://www.glfw.org/) : Libreria usada con OpenGL que provee una API para manejar ventanas
 - [GLM](https://glm.g-truc.net/0.9.9/index.html) : Libreria con funciones matematicas utiles para el uso de aplicaciones con OpenGL
 - [Dear Imgui](https://github.com/ocornut/imgui): Libreria para poder agregar un menu configurable
 
@@ -29,21 +29,65 @@ Luego para instalar las diferentes librerías:
 - [GLM](https://glm.g-truc.net/0.9.9/index.html) : Descargar, descomprimir y copiar directorio que sea raíz de glm.h y pegarla en Libraries/include
 - [Dear Imgui](https://github.com/ocornut/imgui): Descargar los archivos y descomprimir. incorporar los archivos del directorio base y de la versión a usar (openGL3.* y glfw, headers y cpp que se encuentran en la carpeta backends) al proyecto directamente. Importante utilizar la versión que soporta Docking
 
-## Como se instalaron las librerías
-Para poder ejecutar el proyecto debe tener una GPU compatible con CUDA. La aplicacion se puede ejecutar desde el editor Visual Studio 2019, seleccionando la opcion Realease con la plataforma x64 o.
+## Cómo ejecutar la aplicación
+Para poder ejecutar el proyecto debe tener una GPU compatible con CUDA. La aplicación se puede ejecutar desde el editor Visual Studio 2019, seleccionando la opción Release con la plataforma x64- También se incluye el ejecutable.
 
 ## Controles:
 
 Los controles de teclado son:
 - [SCAPE] Salir de la aplicación
-- [SPACEBAR] Posiciona la camara al centro
 
 Los Controles con el mouse son:
 - [Click izquierdo + Movimiento del mouse] Permite rotar la escena
-- [Click derecho + Movimiento del mouse] Permite desplazar la escena o desplazar una esfera, dependiendo de la Checkbox "Object to Collide?" del menu 
+- [Click derecho + Movimiento del mouse] Permite desplazar la escena o desplazar una esfera, dependiendo de la Checkbox "Object to Collide?" del menú
 - [Scroll] Permite alejar o acercar la escena
 
-Aparte con el mouse se puede controlar el menú que aparece en la bentana
+Aparte con el mouse se puede controlar el menú que aparece en la ventana
 
 ## Como usar el menú de Imgui:
 Basta con posicionar el mouse sobre el menú o las pestañas y seleccionar las diversas opciones con el click izquierdo.
+
+------
+## Pestañas / Botones
+El menú lateral presenta los siguientes elementos:
+
+### TimeStep
+Slider para modificar el paso discreto del tiempo para resolver la EDO con el método de Euler
+
+------
+### Gravity
+Tres Slider para cada coordenada de la fuerza de gravedad Junto a botones para setearlos a 0
+
+------
+### Damping
+Parámetros para distintos valores de amortiguación:
+- Global: Slider para modificar la amortiguación al momento de acelerar cada partícula
+- Box: Slider para modificar la amortiguación al chocar con las paredes de la caja
+- Particles: Slider modificar la amortiguación al chocar entre partículas
+
+------
+### Collide Params
+Parámetros de la colisión entre partículas:
+- Spring: Slider para el valor de la fuerza de restitución
+- Shear: Slider para el valor de la fuerza tangencial
+- Attraction: Slider para el valor la fuerza de atracción
+
+------
+### Phong Illumination?
+Checkbox para activar o desactivar la iluminación de Phong en el renderizado de partículas.
+
+------
+### Object to Collide?
+Si se activa la Checkbox se mostrará en escena una esfera que colisiona con las partículas y se controla moviendo el mouse, presionando el click derecho, también se despliega:
+- Height: Slider para cada la altura de la esfera
+- Size: Slider para el tamaño de la esfera
+
+------
+### Particle Configuration
+Botones para elegir alguna configuración con disposiciones diferentes en las posiciones de las partículas. Al presionar se desaparecen las partículas anteriores para instanciar las nuevas
+
+------
+### Instance Particles
+Botones para elegir añadir un conjunto de partículas a la escena si no se ha alcanzado el máximo de 524288 partículas.
+ 
+------
