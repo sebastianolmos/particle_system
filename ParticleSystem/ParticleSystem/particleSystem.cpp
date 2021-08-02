@@ -14,8 +14,6 @@
 #include "utils/performanceMonitor.h"
 #include "menu.h"
 #include "system.h"
-#include "voxelShape.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -49,13 +47,13 @@ const unsigned int window_height = 720;
 uint numParticles = 0;
 uint3 gridSize;
 
-float timeStep = 0.5f;
+float timeStep = 1.0f;
 glm::vec3 gravity = glm::vec3(0.0f, 0.0f, -0.0003f);
 float globalDump = 1.0f;
-float boundaryDump = 1.0f;
-float particleDump = 0.02f;
-float spring = 0.5f;
-float shear = 0.1f;
+float boundaryDump = 0.75f;
+float particleDump = 0.015f;
+float spring = 0.32f;
+float shear = 0.09f;
 float attraction = 0.0f;
 bool collideObject = false;
 uint objectToCollide = 1;
@@ -154,6 +152,8 @@ void runDisplay()
     // ------------------------------------------------------------------
     initParticleSystem(numParticles, gridSize);
     initParams();
+
+
     Shader phongSphereShader("shader/phongMVPShader.vs", "shader/phongMVPShader.fs");
 
     camera.setCenter(glm::vec3(psystem->getCenter().x,
@@ -170,16 +170,6 @@ void runDisplay()
     Shader dirLightShader("shader/lightMVPShader.vs", "shader/lightMVPShader.fs");
     psystem->createSphereCollider();
 
-
-    VoxelShape vShape = VoxelShape("../assets/torus.txt");
-    int si = vShape.getSize();
-    int* vl = vShape.getVoxelsArray();
-    for (int i = 0; i < si; i++)
-    {
-        cout << vl[3 * i + 0] << ", " << vl[3 * i + 1] << ", " << vl[3 * i + 2] << endl;
-    }
-
-
     // Set system params
     psystem->setGravity(gravity.x, gravity.y, gravity.z);
     psystem->setBoundaryDamping(boundaryDump);
@@ -189,6 +179,19 @@ void runDisplay()
     psystem->setShear(shear);
     psystem->setAttraction(attraction);
     psystem->setColliderPosRef(pCollideObject);
+    // Configuration shapes
+    psystem->createVoxelShape1("../assets/cat.txt");
+    psystem->createVoxelShape2("../assets/charizard.txt");
+    psystem->createVoxelShape3("../assets/dragon.txt");
+    psystem->createVoxelShape4("../assets/eiffel.txt");
+    psystem->createVoxelShape5("../assets/guardian.txt");
+    psystem->createVoxelShape6("../assets/hogwarts.txt");
+    psystem->createVoxelShape7("../assets/knight.txt");
+    // Shapes to add
+    psystem->createVoxelShape8("../assets/spacecraft.txt");
+    psystem->createVoxelShape9("../assets/amongUs.txt");
+    psystem->createVoxelShape10("../assets/snorlax.txt");
+    psystem->createVoxelShape11("../assets/dinosaur.txt");
 
     // Set Menu Params
     menu.setGravity(&gravity.x, &gravity.y, &gravity.z);
@@ -208,6 +211,7 @@ void runDisplay()
 
     float t1 = (float)glfwGetTime();
     float t0 = (float)glfwGetTime();
+    float timeCounter = 0.0f;
 
     float timer = 0.0f;
     bool points = false;
@@ -223,121 +227,127 @@ void runDisplay()
         t1 = (float)glfwGetTime();
         deltaTime = t1 - t0;
         t0 = t1;
+        timeCounter += deltaTime;
 
-        pMonitor.update(glfwGetTime());
-        stringstream ss;
-        ss << title << " " << pMonitor;
-        glfwSetWindowTitle(window, ss.str().c_str());
+        if (timeCounter > 1.0 / 60.0f) {
 
-        timer += deltaTime * 1.0f;
+            pMonitor.update(glfwGetTime());
+            stringstream ss;
+            ss << title << " " << pMonitor;
+            glfwSetWindowTitle(window, ss.str().c_str());
 
-        // input
-        // -----
-        processInput(window, &points);
+            timer += deltaTime * 1.0f;
 
-        psystem->setGravity(gravity.x, gravity.y, gravity.z);
-        psystem->setBoundaryDamping(boundaryDump);
-        psystem->setGlobalDamping(globalDump);
-        psystem->setParticleDamping(particleDump);
-        psystem->setSpring(spring);
-        psystem->setShear(shear);
-        psystem->setAttraction(attraction);
-        psystem->setCollideObjectPos(pCollideObject[0], pCollideObject[1], pCollideObject[2]);
-        psystem->setCollideObjectSize(sCollideObject);
-        psystem->setCollideObjectShape(objectToCollide);
+            // input
+            // -----
+            processInput(window, &points);
 
-        psystem->update(timeStep);
+            psystem->setGravity(gravity.x, gravity.y, gravity.z);
+            psystem->setBoundaryDamping(boundaryDump);
+            psystem->setGlobalDamping(globalDump);
+            psystem->setParticleDamping(particleDump);
+            psystem->setSpring(spring);
+            psystem->setShear(shear);
+            psystem->setAttraction(attraction);
+            psystem->setCollideObjectPos(pCollideObject[0], pCollideObject[1], pCollideObject[2]);
+            psystem->setCollideObjectSize(sCollideObject);
+            psystem->setCollideObjectShape(objectToCollide);
 
-        // render
-        // ------
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            psystem->update(timeStep);
 
-        menu.preRender();
+            // render
+            // ------
+            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glEnable(GL_PROGRAM_POINT_SIZE);
-        glEnable(GL_DEPTH_TEST);
-        // render the triangle
-        
+            menu.preRender();
 
-        //glPointSize(100.0f);
-
-        // pass projection matrix to shader (note that in this case it could change every frame)
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Fovy), (float)window_width / (float)window_height, 0.1f, 100.0f);
-
-        // camera/view transformation
-        glm::mat4 view = camera.GetViewMatrix();
-
-        glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        glm::vec3 lightDirection = glm::vec3(-1.0f, -1.0f, -1.0f);
+            glEnable(GL_PROGRAM_POINT_SIZE);
+            glEnable(GL_DEPTH_TEST);
+            // render the triangle
 
 
-        if (!activePhong)
-        {
-            sphereShader.use();
-            sphereShader.setMat4("view", view);
-            sphereShader.setMat4("projection", projection);
-            sphereShader.setMat4("model", model);
-            sphereShader.setFloat("pointRadius", psystem->getParticleRadius());
-            sphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
-            sphereShader.setVec3("lightDir", lightDirection);
+            //glPointSize(100.0f);
+
+            // pass projection matrix to shader (note that in this case it could change every frame)
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Fovy), (float)window_width / (float)window_height, 0.1f, 100.0f);
+
+            // camera/view transformation
+            glm::mat4 view = camera.GetViewMatrix();
+
+            glm::mat4 model = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+            glm::vec3 lightDirection = glm::vec3(-1.0f, -1.0f, -1.0f);
+
+
+            if (!activePhong)
+            {
+                sphereShader.use();
+                sphereShader.setMat4("view", view);
+                sphereShader.setMat4("projection", projection);
+                sphereShader.setMat4("model", model);
+                sphereShader.setFloat("pointRadius", psystem->getParticleRadius());
+                sphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
+                sphereShader.setVec3("lightDir", lightDirection);
+            }
+            else
+            {
+                phongSphereShader.use();
+                phongSphereShader.setMat4("view", view);
+                phongSphereShader.setMat4("projection", projection);
+                phongSphereShader.setMat4("model", model);
+                phongSphereShader.setFloat("pointRadius", psystem->getParticleRadius());
+                phongSphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
+                phongSphereShader.setVec3("lightDir", lightDirection);
+                phongSphereShader.setVec3("camPos", camera.Position);
+                phongSphereShader.setVec3("camR", camera.Right);
+                phongSphereShader.setVec3("camU", camera.Up);
+            }
+
+            psystem->renderParticles();
+
+            // Render Collider object
+            if (collideObject)
+            {
+                // sphere case
+                dirLightShader.use();
+                dirLightShader.setMat4("projection", projection);
+                dirLightShader.setMat4("view", view);
+                float3 sPos = psystem->getCollideObjectPos();
+                glm::mat4 cSmodel = glm::mat4(1.0f);
+                cSmodel = glm::translate(cSmodel, glm::vec3(pCollideObject[0], pCollideObject[1], pCollideObject[2]));
+                float collSize = psystem->getCollideObjectSize();
+                cSmodel = glm::scale(cSmodel, glm::vec3(sCollideObject, sCollideObject, sCollideObject));
+                dirLightShader.setMat4("model", cSmodel);
+                dirLightShader.setVec3("lightDirection", glm::vec3(-1.0f, -1.0f, -1.0f));
+                dirLightShader.setVec3("viewPos", camera.Position);
+                psystem->renderSphereCollider();
+            }
+            else {
+                pCollideObject[0] = -0.5f;
+                pCollideObject[1] = 2.0f;
+                pCollideObject[2] = 0.0f;
+                sCollideObject = 0.5;
+            }
+
+
+            // Render the collide box
+            boxShader.use();
+            boxShader.setMat4("projection", projection);
+            boxShader.setMat4("view", view);
+            glm::mat4 boxModel = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+            boxShader.setMat4("model", boxModel);
+            psystem->renderBox();
+
+            menu.updateNumParticles(psystem->getNumParticles());
+            menu.render();
+
+            // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+            // -------------------------------------------------------------------------------
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+
+            timeCounter = 0;
         }
-        else
-        {
-            phongSphereShader.use();
-            phongSphereShader.setMat4("view", view);
-            phongSphereShader.setMat4("projection", projection);
-            phongSphereShader.setMat4("model", model);
-            phongSphereShader.setFloat("pointRadius", psystem->getParticleRadius());
-            phongSphereShader.setFloat("pointScale", window_height / glm::tan(camera.Fovy * 0.5f * (float)M_PI / 180.0f));
-            phongSphereShader.setVec3("lightDir", lightDirection);
-            phongSphereShader.setVec3("camPos", camera.Position);
-            phongSphereShader.setVec3("camR", camera.Right);
-            phongSphereShader.setVec3("camU", camera.Up);
-        }
-
-        psystem->renderParticles();
-
-        // Render Collider object
-        if (collideObject)
-        {
-            // sphere case
-            dirLightShader.use();
-            dirLightShader.setMat4("projection", projection);
-            dirLightShader.setMat4("view", view);
-            float3 sPos = psystem->getCollideObjectPos();
-            glm::mat4 cSmodel = glm::mat4(1.0f);
-            cSmodel = glm::translate(cSmodel, glm::vec3(pCollideObject[0], pCollideObject[1], pCollideObject[2]));
-            float collSize = psystem->getCollideObjectSize();
-            cSmodel = glm::scale(cSmodel, glm::vec3(sCollideObject, sCollideObject, sCollideObject));
-            dirLightShader.setMat4("model", cSmodel);
-            dirLightShader.setVec3("lightDirection", glm::vec3(-1.0f, -1.0f, -1.0f));
-            dirLightShader.setVec3("viewPos", camera.Position);
-            psystem->renderSphereCollider();
-        }
-        else {
-            pCollideObject[0] = -0.5f;
-            pCollideObject[1] = 2.0f;
-            pCollideObject[2] = 0.0f;
-            sCollideObject = 0.5;
-        }
-
-
-        // Render the collide box
-        boxShader.use();
-        boxShader.setMat4("projection", projection);
-        boxShader.setMat4("view", view);
-        glm::mat4 boxModel = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        boxShader.setMat4("model", boxModel);
-        psystem->renderBox();
-
-        menu.updateNumParticles(psystem->getNumParticles());
-        menu.render();
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
-        glfwSwapBuffers(window);
-        glfwPollEvents();
     }
 
     // optional: de-allocate all resources once they've outlived their purpose:

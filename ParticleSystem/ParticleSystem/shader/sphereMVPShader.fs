@@ -19,11 +19,11 @@ void main()
 	N.z = sqrt(1.0-mag);
 	// calculate lighting
 	float diffuse = max(0.0, dot(-lightDir, N));
-	vec4 ambient = vec4(pColor *0.3f,1);
+	vec4 ambient = vec4(pColor *0.2f,1);
 	
 	vec4 result = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 	if (mag < 1.0 - border){
-		result = vec4(pColor,1) * diffuse;
+		result = vec4(pColor,1) * diffuse *0.9;
 	}
 
 	FragColor = result;

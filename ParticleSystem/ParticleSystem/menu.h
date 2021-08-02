@@ -179,16 +179,30 @@ void Menu::render()
         static float f = 0.0f;
 
         ImGui::Begin("Menu");                          // Create a window called "Hello, world!" and append into it.
-
-        ImGui::SliderFloat("TimeStep", timeStep, 0.0f, 1.0f);
+        ImGui::SliderFloat("TimeStep", timeStep, 0.0f, 1.5f);
         ImGui::Separator();
         // ImGui::Text("Parametros:");               // Display some text (you can use a format strings too)
         if (ImGui::CollapsingHeader("Gravity"))
         {
             ImGui::PushID(1);
-            ImGui::SliderFloat("X", gravityX, -0.01f, 0.01f);
-            ImGui::SliderFloat("Y", gravityY, -0.01f, 0.01f);
-            ImGui::SliderFloat("Z", gravityZ, -0.01f, 0.01f);
+            ImGui::SliderFloat("X", gravityX, -0.001f, 0.001f, "%.5f");
+            ImGui::SameLine();
+            if (ImGui::Button("Set X=0"))
+            {
+                *gravityX = 0.0f;
+            }
+            ImGui::SliderFloat("Y", gravityY, -0.001f, 0.001f, "%.5f");
+            ImGui::SameLine();
+            if (ImGui::Button("Set Y=0"))
+            {
+                *gravityY = 0.0f;
+            }
+            ImGui::SliderFloat("Z", gravityZ, -0.001f, 0.001f, "%.5f");
+            ImGui::SameLine();
+            if (ImGui::Button("Set Z=0"))
+            {
+                *gravityZ = 0.0f;
+            }
             ImGui::PopID();
         }
 
@@ -196,9 +210,9 @@ void Menu::render()
         if (ImGui::CollapsingHeader("Dumping"))
         {
             ImGui::PushID(2);
-            ImGui::SliderFloat("Global", globalDamping, 0.0001, 1.0f);
-            ImGui::SliderFloat("Box", boundaryDamping, 0.0001, 1.00f);
-            ImGui::SliderFloat("Particles", particleDamping, 0.0001, 1.00f);
+            ImGui::SliderFloat("Global", globalDamping, 0.0f, 1.0f);
+            ImGui::SliderFloat("Box", boundaryDamping, 0.0f, 1.00f);
+            ImGui::SliderFloat("Particles", particleDamping, 0.0f, 0.1f);
             ImGui::PopID();
         }
         ImGui::Separator();
@@ -206,8 +220,8 @@ void Menu::render()
         if (ImGui::CollapsingHeader("Collide Params"))
         {
             ImGui::PushID(3);
-            ImGui::SliderFloat("Spring", spring, 0.0001, 1.0f);
-            ImGui::SliderFloat("Shear", shear, 0.0001, 1.0f);
+            ImGui::SliderFloat("Spring", spring, 0.0f, 1.0f);
+            ImGui::SliderFloat("Shear", shear, 0.0f, 0.5f);
             ImGui::SliderFloat("Attraction", attraction, 0.000, 1.0f);
             ImGui::PopID();
         }
@@ -249,10 +263,41 @@ void Menu::render()
             {
                 pSystem->resetRandom(262144);
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Obj"))
+            
+            ImGui::Separator();
+            ImGui::Text("Voxel Shapes");  
+            if (ImGui::Button("Cat"))
             {
-
+                pSystem->resetShape1(1.6, 0.0, 1);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Charizard"))
+            {
+                pSystem->resetShape2(0.0, 0.5, 1.0);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Dragon"))
+            {
+                pSystem->resetShape3(0.0, 1.6, 1.0);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Eiffel"))
+            {
+                pSystem->resetShape4(1.0, 1.0, 0.0);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Guardian"))
+            {
+                pSystem->resetShape5(0.0, 0.0, 1.0);
+            }
+            if (ImGui::Button("Hogwarts"))
+            {
+                pSystem->resetShape6(1.2, 0.0, 1.0);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Knight"))
+            {
+                pSystem->resetShape7(1.4, 0.8, 0.0);
             }
             ImGui::PopID();
         }
@@ -274,12 +319,30 @@ void Menu::render()
             {
                 pSystem->addSphere(2.2f);
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Obj"))
+            ImGui::Separator();
+            ImGui::Text("Voxel Shapes");
+            if (ImGui::Button("SpaceCraft"))
             {
-
+                pSystem->addShape1(2.5f);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Sus"))
+            {
+                pSystem->addShape2(2.0f);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Snorlax"))
+            {
+                pSystem->addShape3(2.0f);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Raptor"))
+            {
+                pSystem->addShape4(2.5f);
             }
             ImGui::PopID();
+
+            ImGui::Separator();
         }
         
         //ImGui::SliderFloat("Damping", damping, 0.0f, 1.0f);

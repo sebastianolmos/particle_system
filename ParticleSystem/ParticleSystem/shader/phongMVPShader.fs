@@ -11,7 +11,13 @@ uniform vec3 camPos;
 uniform vec3 camR;
 uniform vec3 camU;
 
-float border = 0.1f;
+vec3 ka = vec3(0.2f, 0.2f, 0.2f);
+vec3 kd = vec3(0.7f, 0.7f, 0.7f);
+vec3 ks = vec3(0.8f, 0.8f, 0.8f);
+float sh = 16.0f;
+vec3 la = vec3(1.0f, 1.0f, 1.0f);
+vec3 ld = vec3(1.0f, 1.0f, 1.0f);
+vec3 ls = vec3(1.0f, 1.0f, 1.0f);
 
 void main()
 {
@@ -25,13 +31,6 @@ void main()
 	vec3 norm = normalize(camR*N.x + camU*N.y + cross(camR, camU)*N.z);
     vec3 FragPos = pPos + norm * pRadius;
 	// calculate lighting
-    vec3 ka = vec3(0.3f, 0.3f, 0.3f);
-    vec3 kd = vec3(0.6f, 0.6f, 0.6f);
-    vec3 ks = vec3(0.7f, 0.7f, 0.7f);
-    float sh = 32.0f;
-    vec3 la = vec3(1.0f, 1.0f, 1.0f);
-    vec3 ld = vec3(1.0f, 1.0f, 1.0f);
-    vec3 ls = vec3(1.0f, 1.0f, 1.0f);
 	// ambient
     vec3 ambient = la * ka;
   	
